@@ -1,8 +1,5 @@
 const axios = require("axios");
 
-// Free public Judge0 instance - no API key needed
-const JUDGE0_URL = "https://judge0-ce.p.rapidapi.com";
-
 const LANGUAGE_MAP = {
   javascript: 63,
   python: 71,
@@ -20,29 +17,54 @@ exports.executeCode = async (req, res) => {
   }
 
   try {
-    // Use free public Judge0 instance (no API key required)
-    const submitRes = await axios.post(
-      "https://ce.judge0.com/submissions?base64_encoded=false&wait=true",
+    const response = await axios.post(
+      "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
       {
         source_code: code,
         language_id: languageId,
         stdin: "",
       },
       {
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-RapidAPI-Key": "497b63e2f5msh6a0c4e3e3b3e3b3p1a2b3cjsn1a2b3c4d5e6f",
+          "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
+        },
         timeout: 15000,
       }
     );
 
-    const { stdout, stderr, compile_output, status } = submitRes.data;
+    const { stdout, stderr, compile_output, status } = response.data;
     res.json({
       output: stdout || stderr || compile_output || "No output",
       status: status?.description || "Unknown",
     });
   } catch (err) {
-    res.status(500).json({
-      error: "Code execution failed",
-      details: err.message,
-    });
+    // Fallback to free public instance
+    try {
+      const fallback = await axios.post(
+        "https://ce.judge0.com/submissions?base64_encoded=false&wait=true",
+        {
+          source_code: code,
+          language_id: languageId,
+          stdin: "",
+        },
+        {
+          headers: { "Content-Type": "application/json" },
+          timeout: 15000,
+        }
+      );
+
+      const { stdout, stderr, compile_output, status } = fallback.data;
+      res.json({
+        output: stdout || stderr || compile_output || "No output",
+        status: status?.description || "Unknown",
+      });
+    } catch (fallbackErr) {
+      res.status(500).json({
+        error: "Code execution failed",
+        details: fallbackErr.message,
+      });
+    }
   }
 };
